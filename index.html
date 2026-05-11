@@ -139,11 +139,13 @@ button, [onclick] {
 @media (max-width:768px) {
   .welcome-title { font-size:2.5em; }
   .welcome-highlights { grid-template-columns:1fr; }
-  /* v3.4 移动端兼容：紧凑布局 + 大可点击区域 */
+  /* v3.4+3.6 移动端兼容：紧凑布局 + 大可点击区域 + 给 fixed footer 留空间 */
   .scene-header { padding: 14px 16px; }
   .scene-title-area { padding: 28px 18px 16px; }
-  .scene-body { padding: 0 16px 24px; }
-  .scene-footer { padding: 16px; flex-direction: column; gap: 10px; }
+  .scene-body {
+    padding: 0 16px 24px;
+    padding-bottom: calc(130px + env(safe-area-inset-bottom, 30px));
+  }
   .scene-title { font-size: 1.6em; }
   .scene-desc { font-size: 0.95em; }
   .need-item, .painpoint-item { padding: 16px 14px; gap: 10px; }
@@ -171,23 +173,37 @@ button, [onclick] {
 .scene-title { font-size:2.5em; font-weight:600; margin-bottom:12px; }
 .scene-desc { font-size:1.1em; color:#888; max-width:700px; line-height:1.7; }
 
-.scene-body { padding:0 40px 40px; max-width:1200px; margin:0 auto; }
-.scene-footer {
-  padding:30px 40px; border-top:1px solid #1a1a1a;
-  display:flex; justify-content:space-between; align-items:center;
-  position:sticky; bottom:0; background:rgba(10,10,10,0.95);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  /* v3.5.3 手机兼容：大幅抬高底部 padding 避开微信底部工具栏/iPhone home 手势条 */
-  padding-bottom: calc(30px + env(safe-area-inset-bottom, 20px));
-  z-index: 50;
+.scene-body {
+  padding:0 40px 40px;
+  max-width:1200px;
+  margin:0 auto;
+  /* v3.6 预留底部空间，给 fixed 的 scene-footer 位置，避免内容被遮 */
+  padding-bottom: calc(140px + env(safe-area-inset-bottom, 30px));
 }
-/* 小屏：footer 给足够的底部空间，避免被微信工具栏遮挡 */
+.scene-footer {
+  /* v3.6 改为 fixed：微信工具栏遮不到、iPhone 手势条遮不到、绝对在屏幕底部 */
+  position: fixed;
+  left: 0; right: 0; bottom: 0;
+  padding:20px 24px;
+  padding-bottom: calc(20px + env(safe-area-inset-bottom, 24px));
+  border-top:1px solid #1a1a1a;
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap: 12px;
+  background:rgba(10,10,10,0.97);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  z-index: 100;
+}
+/* 只有当前 active scene 的 footer 显示，其它 scene 的 footer 藏起来 */
+.scene:not(.active) .scene-footer { display: none !important; }
 @media (max-width: 768px) {
   .scene-footer {
-    padding-top: 16px;
-    padding-bottom: calc(24px + env(safe-area-inset-bottom, 30px)) !important;
+    padding:14px 16px;
+    padding-bottom: calc(16px + env(safe-area-inset-bottom, 28px));
   }
+  .scene-body { padding-bottom: calc(130px + env(safe-area-inset-bottom, 30px)); }
 }
 
 /* ===== 第二幕：定方向（拖拽选择 + 连线） ===== */
@@ -4191,42 +4207,58 @@ window.addEventListener('DOMContentLoaded', () => {
     console.log('检测到进行中的训练计划:', p.name);
   }
 
-  // v3.5.3 按钮双保险：既响应 click 也响应 touchend（防微信 click 合成失败）
-  // 给所有带 onclick 的 button 加 touchend 兜底触发（只对 button 元素，其它 [onclick] 元素不动以避免影响拖拽排序）
-  document.addEventListener('touchend', function(e) {
-    const btn = e.target.closest('button[onclick]');
-    if (!btn || btn.disabled) return;
-    // 只处理主要手势（无拖动），touch 位移小
-    const touch = e.changedTouches && e.changedTouches[0];
-    if (!touch || !btn._touchStart) return;
-    const dx = Math.abs(touch.clientX - btn._touchStart.x);
-    const dy = Math.abs(touch.clientY - btn._touchStart.y);
-    const dt = Date.now() - btn._touchStart.t;
-    btn._touchStart = null;
-    if (dx > 10 || dy > 10 || dt > 600) return;
-    // 已经派发了 click？200ms 内防止重复
-    if (btn._justClicked) return;
-    btn._justClicked = true;
-    setTimeout(() => { btn._justClicked = false; }, 400);
-    // 手动执行 onclick
-    const onclickStr = btn.getAttribute('onclick');
-    if (onclickStr) {
+  // v3.6 核心修复：把所有 <button> 的 inline onclick 转成 addEventListener('click')。
+  // 微信/iOS WebView 对 inline onclick="" 属性的触发有已知 bug（尤其和 sticky/fixed 定位叠加时），
+  // 统一改成 addEventListener 是最稳妥的方案。
+  const allButtons = document.querySelectorAll('button[onclick]');
+  allButtons.forEach(btn => {
+    const code = btn.getAttribute('onclick');
+    if (!code) return;
+    // 移除 inline onclick，防止双触发
+    btn.removeAttribute('onclick');
+    // 保存成 data 属性方便调试
+    btn.setAttribute('data-action', code);
+    // 用 addEventListener 绑定 click（真机必然可靠）
+    btn.addEventListener('click', function(ev) {
+      if (btn.disabled) return;
       try {
-        // 用 Function 构造器执行（等价于 inline 执行）
-        (new Function(onclickStr)).call(btn);
+        // 用 Function 构造器执行原 onclick 代码（保持 this 指向按钮自身）
+        (new Function(code)).call(btn);
       } catch(err) {
-        console.warn('manual onclick exec failed:', err);
+        console.error('button click handler error:', err, 'code:', code);
       }
-    }
-  }, { passive: true });
-
-  document.addEventListener('touchstart', function(e) {
-    const btn = e.target.closest('button[onclick]');
-    if (!btn || btn.disabled) return;
-    const touch = e.touches && e.touches[0];
-    if (!touch) return;
-    btn._touchStart = { x: touch.clientX, y: touch.clientY, t: Date.now() };
-  }, { passive: true });
+    });
+    // touchend 兜底：如果 click 事件没触发（微信 X5 偶发性合成失败），用 touchend 手动派发
+    let tStart = null;
+    btn.addEventListener('touchstart', e => {
+      if (btn.disabled) return;
+      const t = e.touches && e.touches[0];
+      if (!t) return;
+      tStart = { x: t.clientX, y: t.clientY, time: Date.now() };
+    }, { passive: true });
+    btn.addEventListener('touchend', e => {
+      if (!tStart || btn.disabled) { tStart = null; return; }
+      const t = e.changedTouches && e.changedTouches[0];
+      if (!t) { tStart = null; return; }
+      const dx = Math.abs(t.clientX - tStart.x);
+      const dy = Math.abs(t.clientY - tStart.y);
+      const dt = Date.now() - tStart.time;
+      tStart = null;
+      // 位移<12px、时长<700ms 视为点击手势
+      if (dx > 12 || dy > 12 || dt > 700) return;
+      // 400ms 内已经点过就忽略（防 click 重复触发）
+      if (btn._recentlyFired) return;
+      btn._recentlyFired = true;
+      setTimeout(() => { btn._recentlyFired = false; }, 400);
+      // 直接执行
+      try {
+        (new Function(code)).call(btn);
+      } catch(err) {
+        console.error('touchend handler error:', err);
+      }
+    }, { passive: true });
+  });
+  console.log('v3.6: bound click+touchend for', allButtons.length, 'buttons');
 });
 
 function restart() {
