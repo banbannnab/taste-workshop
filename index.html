@@ -114,6 +114,18 @@ body {
 @media (max-width:768px) {
   .welcome-title { font-size:2.5em; }
   .welcome-highlights { grid-template-columns:1fr; }
+  /* v3.4 移动端兼容：紧凑布局 + 大可点击区域 */
+  .scene-header { padding: 14px 16px; }
+  .scene-title-area { padding: 28px 18px 16px; }
+  .scene-body { padding: 0 16px 24px; }
+  .scene-footer { padding: 16px; flex-direction: column; gap: 10px; }
+  .scene-title { font-size: 1.6em; }
+  .scene-desc { font-size: 0.95em; }
+  .need-item, .painpoint-item { padding: 16px 14px; gap: 10px; }
+  .need-item .need-content .need-title { font-size: 0.95em; }
+  .need-item .need-content .need-desc { font-size: 0.78em; }
+  .need-handle, .painpoint-handle { font-size: 1.4em; padding: 6px; }
+  .btn-primary, .btn-ghost { padding: 12px 22px; font-size: 0.95em; }
 }
 
 /* ===== 通用关卡布局 ===== */
@@ -215,11 +227,13 @@ body {
 .needs-list { display:flex; flex-direction:column; gap:8px; }
 .need-item {
   background:#1a1a1a; border:1px solid #222; border-radius:12px;
-  padding:14px 16px; cursor:grab; transition: all 0.2s ease;
+  padding:14px 16px; cursor:grab; transition: border-color 0.2s ease, box-shadow 0.2s ease;
   display:flex; align-items:center; gap:14px;
+  touch-action: none; /* 阻止移动端默认手势，让 Pointer Events 拿到 move */
+  user-select: none; -webkit-user-select: none;
 }
 .need-item:hover { border-color:#444; }
-.need-item.dragging { opacity:0.4; }
+.need-item.dragging { opacity:0.6; box-shadow: 0 8px 24px rgba(0,0,0,0.5); border-color:#666; transform: scale(1.02); z-index:50; position:relative; }
 .need-item .need-rank {
   width:28px; height:28px; border-radius:50%; background:#222;
   display:flex; align-items:center; justify-content:center;
@@ -459,10 +473,12 @@ body {
 .painpoint-item {
   background:#1a1a1a; border:1px solid #222; border-radius:12px;
   padding:14px 18px; cursor:grab; display:flex; align-items:center; gap:14px;
-  transition: all 0.2s ease;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  touch-action: none;
+  user-select: none; -webkit-user-select: none;
 }
 .painpoint-item:hover { border-color:#444; }
-.painpoint-item.dragging { opacity:0.4; }
+.painpoint-item.dragging { opacity:0.6; box-shadow: 0 8px 24px rgba(0,0,0,0.5); border-color:#666; transform: scale(1.02); z-index:50; position:relative; }
 .painpoint-rank {
   width:28px; height:28px; border-radius:50%; background:#222;
   display:flex; align-items:center; justify-content:center;
@@ -1332,27 +1348,27 @@ body {
       <h4>② 用户最在意什么？（拖拽排序，最重要的放最上面）</h4>
       <p class="hint">拖动条目调整顺序，第一名将被高亮为"核心痛点"</p>
       <div class="painpoint-list" id="painpointList">
-        <div class="painpoint-item" draggable="true" data-id="p1">
+        <div class="painpoint-item" data-id="p1">
           <span class="painpoint-rank">1</span>
           <span class="painpoint-text">没时间，操作必须快</span>
           <span class="painpoint-handle">≡</span>
         </div>
-        <div class="painpoint-item" draggable="true" data-id="p2">
+        <div class="painpoint-item" data-id="p2">
           <span class="painpoint-rank">2</span>
           <span class="painpoint-text">没动力，需要持续激励</span>
           <span class="painpoint-handle">≡</span>
         </div>
-        <div class="painpoint-item" draggable="true" data-id="p3">
+        <div class="painpoint-item" data-id="p3">
           <span class="painpoint-rank">3</span>
           <span class="painpoint-text">不知道怎么开始，需要引导</span>
           <span class="painpoint-handle">≡</span>
         </div>
-        <div class="painpoint-item" draggable="true" data-id="p4">
+        <div class="painpoint-item" data-id="p4">
           <span class="painpoint-rank">4</span>
           <span class="painpoint-text">觉得太复杂，需要简化</span>
           <span class="painpoint-handle">≡</span>
         </div>
-        <div class="painpoint-item" draggable="true" data-id="p5">
+        <div class="painpoint-item" data-id="p5">
           <span class="painpoint-rank">5</span>
           <span class="painpoint-text">找不到同伴，需要社交</span>
           <span class="painpoint-handle">≡</span>
@@ -2240,7 +2256,7 @@ function pickUser(el, userId) {
   const needs = [...data.needs].sort(() => Math.random() - 0.5);
   const list = document.getElementById('needsList');
   list.innerHTML = needs.map((n, i) => `
-    <div class="need-item" draggable="true" data-id="${n.id}">
+    <div class="need-item" data-id="${n.id}">
       <span class="need-rank">${i+1}</span>
       <div class="need-content">
         <div class="need-title">${n.title}</div>
@@ -2266,30 +2282,115 @@ function pickUser(el, userId) {
 
 function bindNeedsDrag() {
   const list = document.getElementById('needsList');
-  let dragSrc = null;
+  enableTouchSort(list, '.need-item', () => updateNeedsOrder());
+}
 
-  list.querySelectorAll('.need-item').forEach(item => {
-    item.addEventListener('dragstart', e => {
-      dragSrc = item; item.classList.add('dragging');
-    });
-    item.addEventListener('dragend', e => {
-      item.classList.remove('dragging');
-      // 排序完成后保存 + 给反馈
-      updateNeedsOrder();
-    });
+// ============ 通用 Pointer Events 排序（兼容鼠标 + 触摸 + Apple Pencil） ============
+// 替代 HTML5 Drag API（移动端不支持），实现真正的手机端可拖拽排序
+function enableTouchSort(listEl, itemSelector, onChange) {
+  if (!listEl || listEl._sortBound) return; // 防止重复绑定
+  listEl._sortBound = true;
+
+  let dragEl = null;        // 当前正在拖拽的元素
+  let placeholder = null;   // 占位空块，保留原位置高度
+  let startY = 0, startX = 0;
+  let dragOffsetY = 0;      // pointer 在 dragEl 内部的 y 偏移
+  let originalNext = null;  // 原始 nextSibling，用于取消拖拽时还原
+  let activePointerId = null;
+  let started = false;      // 是否真正开始拖拽（小位移忽略）
+  const THRESHOLD = 6;      // px：超过这个位移才认定为拖拽（避免误触）
+
+  listEl.addEventListener('pointerdown', e => {
+    if (e.button !== undefined && e.button !== 0) return; // 只接受主键
+    const item = e.target.closest(itemSelector);
+    if (!item || !listEl.contains(item)) return;
+    activePointerId = e.pointerId;
+    dragEl = item;
+    started = false;
+    const rect = item.getBoundingClientRect();
+    startY = e.clientY;
+    startX = e.clientX;
+    dragOffsetY = e.clientY - rect.top;
+    originalNext = item.nextSibling;
+    // 不在 down 时立即捕获/preventDefault，等到位移阈值后才触发，避免影响点击
   });
 
-  list.addEventListener('dragover', e => {
+  listEl.addEventListener('pointermove', e => {
+    if (!dragEl || e.pointerId !== activePointerId) return;
+    const dy = e.clientY - startY;
+    const dx = e.clientX - startX;
+
+    if (!started) {
+      if (Math.abs(dy) < THRESHOLD && Math.abs(dx) < THRESHOLD) return;
+      // 真正开始拖拽
+      started = true;
+      const rect = dragEl.getBoundingClientRect();
+      // 创建占位
+      placeholder = document.createElement('div');
+      placeholder.style.height = rect.height + 'px';
+      placeholder.style.margin = getComputedStyle(dragEl).margin;
+      placeholder.style.boxSizing = 'border-box';
+      placeholder.style.pointerEvents = 'none';
+      placeholder.className = 'sort-placeholder';
+      dragEl.parentNode.insertBefore(placeholder, dragEl);
+      // 把 dragEl 设置为 absolute 跟随手指
+      dragEl.style.width = rect.width + 'px';
+      dragEl.style.position = 'fixed';
+      dragEl.style.left = rect.left + 'px';
+      dragEl.style.top = rect.top + 'px';
+      dragEl.style.zIndex = '9999';
+      dragEl.classList.add('dragging');
+      try { dragEl.setPointerCapture(e.pointerId); } catch (err) {}
+    }
+
     e.preventDefault();
-    if (!dragSrc) return;
-    const items = [...list.querySelectorAll('.need-item:not(.dragging)')];
-    const after = items.find(item => {
-      const box = item.getBoundingClientRect();
-      return e.clientY < box.top + box.height/2;
-    });
-    if (after) list.insertBefore(dragSrc, after);
-    else list.appendChild(dragSrc);
+    // 跟随手指
+    const newTop = e.clientY - dragOffsetY;
+    dragEl.style.top = newTop + 'px';
+
+    // 寻找应该插入的位置：找 placeholder 之外、未被拖拽的兄弟元素中，y 中点高于当前 pointer 的最后一个之后；或低于的第一个之前
+    const items = [...listEl.querySelectorAll(itemSelector)].filter(el => el !== dragEl);
+    let inserted = false;
+    for (const el of items) {
+      if (el === placeholder) continue;
+      const box = el.getBoundingClientRect();
+      const mid = box.top + box.height / 2;
+      if (e.clientY < mid) {
+        if (placeholder.nextSibling !== el) listEl.insertBefore(placeholder, el);
+        inserted = true;
+        break;
+      }
+    }
+    if (!inserted) {
+      // 放到最后
+      if (placeholder.nextSibling !== null) listEl.appendChild(placeholder);
+    }
   });
+
+  function endDrag(e) {
+    if (!dragEl || e.pointerId !== activePointerId) return;
+    if (started && placeholder) {
+      // 把 dragEl 真正插入到 placeholder 位置
+      placeholder.parentNode.insertBefore(dragEl, placeholder);
+      placeholder.remove();
+      placeholder = null;
+      // 还原样式
+      dragEl.style.position = '';
+      dragEl.style.left = '';
+      dragEl.style.top = '';
+      dragEl.style.width = '';
+      dragEl.style.zIndex = '';
+      dragEl.classList.remove('dragging');
+      try { dragEl.releasePointerCapture(e.pointerId); } catch (err) {}
+      if (typeof onChange === 'function') onChange();
+    }
+    dragEl = null;
+    activePointerId = null;
+    started = false;
+  }
+
+  listEl.addEventListener('pointerup', endDrag);
+  listEl.addEventListener('pointercancel', endDrag);
 }
 
 function updateNeedsOrder() {
@@ -2342,31 +2443,9 @@ function pickScenario(el, id) {
   document.getElementById('bgStatus').textContent = '准备好了，继续';
 }
 
-// 痛点拖拽排序
+// 痛点拖拽排序（v3.4：用通用 Pointer Events 排序，移动端兼容）
 const painpointList = document.getElementById('painpointList');
-let dragSrc = null;
-painpointList.addEventListener('dragstart', e => {
-  if (e.target.classList.contains('painpoint-item')) {
-    dragSrc = e.target;
-    e.target.classList.add('dragging');
-  }
-});
-painpointList.addEventListener('dragend', e => {
-  if (e.target.classList.contains('painpoint-item')) {
-    e.target.classList.remove('dragging');
-  }
-});
-painpointList.addEventListener('dragover', e => {
-  e.preventDefault();
-  const items = [...painpointList.querySelectorAll('.painpoint-item:not(.dragging)')];
-  const after = items.find(item => {
-    const box = item.getBoundingClientRect();
-    return e.clientY < box.top + box.height/2;
-  });
-  if (after) painpointList.insertBefore(dragSrc, after);
-  else painpointList.appendChild(dragSrc);
-});
-painpointList.addEventListener('drop', () => {
+enableTouchSort(painpointList, '.painpoint-item', () => {
   const items = [...painpointList.querySelectorAll('.painpoint-item')];
   state.painpoints = items.map(i => i.dataset.id);
   items.forEach((item, idx) => {
