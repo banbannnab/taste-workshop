@@ -178,9 +178,16 @@ button, [onclick] {
   position:sticky; bottom:0; background:rgba(10,10,10,0.95);
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
-  /* v3.5.1 手机兼容：避开 iPhone home 手势条 + 提高 z-index 确保按钮可点 */
-  padding-bottom: calc(30px + env(safe-area-inset-bottom, 0px));
+  /* v3.5.3 手机兼容：大幅抬高底部 padding 避开微信底部工具栏/iPhone home 手势条 */
+  padding-bottom: calc(30px + env(safe-area-inset-bottom, 20px));
   z-index: 50;
+}
+/* 小屏：footer 给足够的底部空间，避免被微信工具栏遮挡 */
+@media (max-width: 768px) {
+  .scene-footer {
+    padding-top: 16px;
+    padding-bottom: calc(24px + env(safe-area-inset-bottom, 30px)) !important;
+  }
 }
 
 /* ===== 第二幕：定方向（拖拽选择 + 连线） ===== */
@@ -2169,12 +2176,18 @@ function goScene(name) {
   // 常规切换：移除所有 scene 的 active，激活 target
   document.querySelectorAll('.scene').forEach(s => s.classList.remove('active'));
   targetEl.classList.add('active');
-  // 滚到顶
-  requestAnimationFrame(() => {
-    window.scrollTo(0, 0);
+  // 滚到顶（多重保险，确保微信/iOS/Android 都能滚上去）
+  try { window.scrollTo(0, 0); } catch(e) {}
+  document.documentElement.scrollTop = 0;
+  document.body.scrollTop = 0;
+  // 用 setTimeout + requestAnimationFrame 双保险确保切换完成后滚动生效
+  setTimeout(() => {
+    try { window.scrollTo(0, 0); } catch(e) {}
     document.documentElement.scrollTop = 0;
     document.body.scrollTop = 0;
-  });
+    // 把 target scene 滚到视口顶部
+    if (targetEl.scrollIntoView) targetEl.scrollIntoView({ block: 'start' });
+  }, 50);
 }
 
 // ============ 即时Toast反馈 ============
@@ -4177,6 +4190,43 @@ window.addEventListener('DOMContentLoaded', () => {
   if (p && !p.abandoned) {
     console.log('检测到进行中的训练计划:', p.name);
   }
+
+  // v3.5.3 按钮双保险：既响应 click 也响应 touchend（防微信 click 合成失败）
+  // 给所有带 onclick 的 button 加 touchend 兜底触发（只对 button 元素，其它 [onclick] 元素不动以避免影响拖拽排序）
+  document.addEventListener('touchend', function(e) {
+    const btn = e.target.closest('button[onclick]');
+    if (!btn || btn.disabled) return;
+    // 只处理主要手势（无拖动），touch 位移小
+    const touch = e.changedTouches && e.changedTouches[0];
+    if (!touch || !btn._touchStart) return;
+    const dx = Math.abs(touch.clientX - btn._touchStart.x);
+    const dy = Math.abs(touch.clientY - btn._touchStart.y);
+    const dt = Date.now() - btn._touchStart.t;
+    btn._touchStart = null;
+    if (dx > 10 || dy > 10 || dt > 600) return;
+    // 已经派发了 click？200ms 内防止重复
+    if (btn._justClicked) return;
+    btn._justClicked = true;
+    setTimeout(() => { btn._justClicked = false; }, 400);
+    // 手动执行 onclick
+    const onclickStr = btn.getAttribute('onclick');
+    if (onclickStr) {
+      try {
+        // 用 Function 构造器执行（等价于 inline 执行）
+        (new Function(onclickStr)).call(btn);
+      } catch(err) {
+        console.warn('manual onclick exec failed:', err);
+      }
+    }
+  }, { passive: true });
+
+  document.addEventListener('touchstart', function(e) {
+    const btn = e.target.closest('button[onclick]');
+    if (!btn || btn.disabled) return;
+    const touch = e.touches && e.touches[0];
+    if (!touch) return;
+    btn._touchStart = { x: touch.clientX, y: touch.clientY, t: Date.now() };
+  }, { passive: true });
 });
 
 function restart() {
