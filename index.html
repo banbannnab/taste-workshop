@@ -10,13 +10,21 @@
 <meta name="screen-orientation" content="portrait">
 <title>Taste工坊 v3 - 训练工具版</title>
 <style>
-* { margin:0; padding:0; box-sizing:border-box; }
+* { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color: transparent; }
 body {
   font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
   background: #0a0a0a;
   color: #fff;
   line-height: 1.6;
   overflow-x: hidden;
+  -webkit-text-size-adjust: 100%;
+  -webkit-overflow-scrolling: touch;
+}
+/* 所有按钮默认能被点击（iOS 对非 button/a 元素的 click 有限制），并给出明确触控反馈 */
+button, [onclick] {
+  -webkit-tap-highlight-color: rgba(255,255,255,0.1);
+  touch-action: manipulation;
+  cursor: pointer;
 }
 
 /* ===== 公共样式 ===== */
@@ -51,15 +59,27 @@ body {
   padding:18px 50px; background:#fff; color:#000; border:none;
   border-radius:980px; font-size:1.05em; font-weight:500; cursor:pointer;
   transition: all 0.3s ease;
+  -webkit-tap-highlight-color: rgba(0,0,0,0.1);
+  touch-action: manipulation;
+  -webkit-appearance: none; appearance: none;
+  user-select: none; -webkit-user-select: none;
+  position: relative; z-index: 2;
 }
 .btn-primary:hover { transform:scale(1.04); box-shadow:0 10px 40px rgba(255,255,255,0.2); }
+.btn-primary:active { transform: scale(0.97); }
 .btn-primary:disabled { opacity:0.3; cursor:not-allowed; transform:none; }
 
 .btn-ghost {
   padding:14px 32px; background:transparent; color:#fff; border:1px solid #444;
   border-radius:980px; font-size:0.95em; cursor:pointer; transition: all 0.3s ease;
+  -webkit-tap-highlight-color: rgba(255,255,255,0.1);
+  touch-action: manipulation;
+  -webkit-appearance: none; appearance: none;
+  user-select: none; -webkit-user-select: none;
+  position: relative; z-index: 2;
 }
 .btn-ghost:hover { border-color:#fff; }
+.btn-ghost:active { background: rgba(255,255,255,0.05); }
 
 /* ===== 第一幕：欢迎入场 ===== */
 #scene-welcome {
@@ -157,6 +177,10 @@ body {
   display:flex; justify-content:space-between; align-items:center;
   position:sticky; bottom:0; background:rgba(10,10,10,0.95);
   backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  /* v3.5.1 手机兼容：避开 iPhone home 手势条 + 提高 z-index 确保按钮可点 */
+  padding-bottom: calc(30px + env(safe-area-inset-bottom, 0px));
+  z-index: 50;
 }
 
 /* ===== 第二幕：定方向（拖拽选择 + 连线） ===== */
@@ -2353,7 +2377,9 @@ function enableTouchSort(listEl, itemSelector, onChange) {
       dragEl.classList.add('dragging');
     }
 
-    // 关键：拖拽中阻止默认滚动行为
+    // 关键：只在真正拖拽态才阻止滚动；未进入拖拽态（刚按下小幅抖动）时不要 preventDefault，
+    // 否则 iOS 会取消 touchend 后的 click 合成，导致页面上其它按钮点不动
+    if (!started) return;
     if (e.cancelable) e.preventDefault();
 
     dragEl.style.top = (p.y - dragOffsetY) + 'px';
@@ -4166,6 +4192,46 @@ window.addEventListener('DOMContentLoaded', () => {
   if (p && !p.abandoned) {
     console.log('检测到进行中的训练计划:', p.name);
   }
+
+  // v3.5.1 微信/iOS 兼容：给所有带 onclick 的交互元素绑 touchend 兜底触发 click。
+  // 原因：某些情况下 iOS WKWebView / 微信 X5 的 touchend→click 合成会失效（尤其在 scene 切换后的新 DOM）。
+  // 我们在 touchend 时若手指位移 <10px 就手动触发一次 click。click 事件在 iOS 上会被自动去重（不会双触发）。
+  let _tapStart = null;
+  document.addEventListener('touchstart', e => {
+    const t = e.target.closest('button, [onclick]');
+    if (!t) { _tapStart = null; return; }
+    // 如果 target 在 list 排序容器内，交给排序逻辑处理
+    if (t.closest('.needs-list, .painpoint-list')) { _tapStart = null; return; }
+    const p = e.touches[0];
+    _tapStart = { el: t, x: p.clientX, y: p.clientY, t: Date.now() };
+  }, { passive: true });
+  document.addEventListener('touchend', e => {
+    if (!_tapStart) return;
+    const { el, x, y, t } = _tapStart;
+    _tapStart = null;
+    const p = e.changedTouches[0];
+    if (!p) return;
+    const dx = p.clientX - x, dy = p.clientY - y;
+    const dt = Date.now() - t;
+    // 位移小、时间短 = 点击手势
+    if (Math.abs(dx) < 10 && Math.abs(dy) < 10 && dt < 500) {
+      // 原生 click 大多数情况会触发；我们在 50ms 内用 flag 防止重复
+      if (el._tapping) return;
+      el._tapping = true;
+      setTimeout(() => { el._tapping = false; }, 350);
+      // 如果 50ms 内原生 click 没来，手动触发
+      let fired = false;
+      const onClick = () => { fired = true; };
+      el.addEventListener('click', onClick, { once: true });
+      setTimeout(() => {
+        el.removeEventListener('click', onClick);
+        if (!fired && !el.disabled) {
+          // 手动触发 click
+          try { el.click(); } catch(err) { console.warn('manual click failed', err); }
+        }
+      }, 80);
+    }
+  }, { passive: true });
 });
 
 function restart() {
