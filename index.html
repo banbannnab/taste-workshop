@@ -2,7 +2,12 @@
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="format-detection" content="telephone=no, email=no, address=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="x5-orientation" content="portrait">
+<meta name="screen-orientation" content="portrait">
 <title>Taste工坊 v3 - 训练工具版</title>
 <style>
 * { margin:0; padding:0; box-sizing:border-box; }
@@ -2285,47 +2290,54 @@ function bindNeedsDrag() {
   enableTouchSort(list, '.need-item', () => updateNeedsOrder());
 }
 
-// ============ 通用 Pointer Events 排序（兼容鼠标 + 触摸 + Apple Pencil） ============
-// 替代 HTML5 Drag API（移动端不支持），实现真正的手机端可拖拽排序
+// ============ 通用拖拽排序（v3.5：Touch Events + Mouse Events 双轨，微信内置浏览器/X5/WKWebView 全兼容） ============
+// 不再用 Pointer Events（微信 X5 内核 setPointerCapture 不稳定）
+// 不再用 HTML5 Drag API（移动端完全不支持）
 function enableTouchSort(listEl, itemSelector, onChange) {
   if (!listEl || listEl._sortBound) return; // 防止重复绑定
   listEl._sortBound = true;
 
-  let dragEl = null;        // 当前正在拖拽的元素
-  let placeholder = null;   // 占位空块，保留原位置高度
+  let dragEl = null;
+  let placeholder = null;
   let startY = 0, startX = 0;
-  let dragOffsetY = 0;      // pointer 在 dragEl 内部的 y 偏移
-  let originalNext = null;  // 原始 nextSibling，用于取消拖拽时还原
-  let activePointerId = null;
-  let started = false;      // 是否真正开始拖拽（小位移忽略）
-  const THRESHOLD = 6;      // px：超过这个位移才认定为拖拽（避免误触）
+  let dragOffsetY = 0;
+  let started = false;
+  let isTouch = false;        // 当前是触摸还是鼠标
+  const THRESHOLD = 6;
 
-  listEl.addEventListener('pointerdown', e => {
-    if (e.button !== undefined && e.button !== 0) return; // 只接受主键
-    const item = e.target.closest(itemSelector);
+  // 取触摸点的 clientX/clientY
+  function getPoint(e) {
+    if (e.touches && e.touches.length) return { x: e.touches[0].clientX, y: e.touches[0].clientY };
+    if (e.changedTouches && e.changedTouches.length) return { x: e.changedTouches[0].clientX, y: e.changedTouches[0].clientY };
+    return { x: e.clientX, y: e.clientY };
+  }
+
+  function onStart(e, touch) {
+    if (dragEl) return; // 已经在拖了
+    const target = e.target;
+    const item = target && target.closest ? target.closest(itemSelector) : null;
     if (!item || !listEl.contains(item)) return;
-    activePointerId = e.pointerId;
+    if (!touch && e.button !== undefined && e.button !== 0) return; // 鼠标只接受主键
+    isTouch = touch;
     dragEl = item;
     started = false;
     const rect = item.getBoundingClientRect();
-    startY = e.clientY;
-    startX = e.clientX;
-    dragOffsetY = e.clientY - rect.top;
-    originalNext = item.nextSibling;
-    // 不在 down 时立即捕获/preventDefault，等到位移阈值后才触发，避免影响点击
-  });
+    const p = getPoint(e);
+    startX = p.x; startY = p.y;
+    dragOffsetY = p.y - rect.top;
+    // 不在 start 时立即 preventDefault，否则点击/链接全失效；等阈值后再阻止
+  }
 
-  listEl.addEventListener('pointermove', e => {
-    if (!dragEl || e.pointerId !== activePointerId) return;
-    const dy = e.clientY - startY;
-    const dx = e.clientX - startX;
+  function onMove(e) {
+    if (!dragEl) return;
+    const p = getPoint(e);
+    const dx = p.x - startX, dy = p.y - startY;
 
     if (!started) {
       if (Math.abs(dy) < THRESHOLD && Math.abs(dx) < THRESHOLD) return;
-      // 真正开始拖拽
+      // 进入拖拽态
       started = true;
       const rect = dragEl.getBoundingClientRect();
-      // 创建占位
       placeholder = document.createElement('div');
       placeholder.style.height = rect.height + 'px';
       placeholder.style.margin = getComputedStyle(dragEl).margin;
@@ -2333,64 +2345,79 @@ function enableTouchSort(listEl, itemSelector, onChange) {
       placeholder.style.pointerEvents = 'none';
       placeholder.className = 'sort-placeholder';
       dragEl.parentNode.insertBefore(placeholder, dragEl);
-      // 把 dragEl 设置为 absolute 跟随手指
       dragEl.style.width = rect.width + 'px';
       dragEl.style.position = 'fixed';
       dragEl.style.left = rect.left + 'px';
       dragEl.style.top = rect.top + 'px';
       dragEl.style.zIndex = '9999';
       dragEl.classList.add('dragging');
-      try { dragEl.setPointerCapture(e.pointerId); } catch (err) {}
     }
 
-    e.preventDefault();
-    // 跟随手指
-    const newTop = e.clientY - dragOffsetY;
-    dragEl.style.top = newTop + 'px';
+    // 关键：拖拽中阻止默认滚动行为
+    if (e.cancelable) e.preventDefault();
 
-    // 寻找应该插入的位置：找 placeholder 之外、未被拖拽的兄弟元素中，y 中点高于当前 pointer 的最后一个之后；或低于的第一个之前
-    const items = [...listEl.querySelectorAll(itemSelector)].filter(el => el !== dragEl);
-    let inserted = false;
-    for (const el of items) {
-      if (el === placeholder) continue;
-      const box = el.getBoundingClientRect();
-      const mid = box.top + box.height / 2;
-      if (e.clientY < mid) {
-        if (placeholder.nextSibling !== el) listEl.insertBefore(placeholder, el);
-        inserted = true;
-        break;
+    dragEl.style.top = (p.y - dragOffsetY) + 'px';
+
+    // 用 elementFromPoint 找鼠标/手指所在的元素，然后向上找 itemSelector
+    // （比遍历兄弟节点更稳，能处理嵌套/复杂布局）
+    let underEl = null;
+    if (placeholder) placeholder.style.visibility = 'hidden';
+    dragEl.style.visibility = 'hidden';
+    try { underEl = document.elementFromPoint(p.x, p.y); } catch(err) {}
+    dragEl.style.visibility = '';
+    if (placeholder) placeholder.style.visibility = '';
+
+    if (!underEl) return;
+    const target = underEl.closest ? underEl.closest(itemSelector) : null;
+    if (!target || !listEl.contains(target) || target === dragEl) return;
+
+    // 根据手指 y 与目标 y 中点关系决定插入前还是插入后
+    const tBox = target.getBoundingClientRect();
+    const before = p.y < tBox.top + tBox.height / 2;
+    if (before) {
+      if (target.previousSibling !== placeholder) listEl.insertBefore(placeholder, target);
+    } else {
+      if (target.nextSibling !== placeholder) {
+        if (target.nextSibling) listEl.insertBefore(placeholder, target.nextSibling);
+        else listEl.appendChild(placeholder);
       }
     }
-    if (!inserted) {
-      // 放到最后
-      if (placeholder.nextSibling !== null) listEl.appendChild(placeholder);
-    }
-  });
+  }
 
-  function endDrag(e) {
-    if (!dragEl || e.pointerId !== activePointerId) return;
+  function onEnd(e) {
+    if (!dragEl) return;
     if (started && placeholder) {
-      // 把 dragEl 真正插入到 placeholder 位置
       placeholder.parentNode.insertBefore(dragEl, placeholder);
       placeholder.remove();
       placeholder = null;
-      // 还原样式
       dragEl.style.position = '';
       dragEl.style.left = '';
       dragEl.style.top = '';
       dragEl.style.width = '';
       dragEl.style.zIndex = '';
+      dragEl.style.visibility = '';
       dragEl.classList.remove('dragging');
-      try { dragEl.releasePointerCapture(e.pointerId); } catch (err) {}
-      if (typeof onChange === 'function') onChange();
+      if (typeof onChange === 'function') {
+        try { onChange(); } catch(err) { console.warn('sort onChange error:', err); }
+      }
     }
     dragEl = null;
-    activePointerId = null;
     started = false;
   }
 
-  listEl.addEventListener('pointerup', endDrag);
-  listEl.addEventListener('pointercancel', endDrag);
+  // —— 触摸事件（移动端，passive:false 才能 preventDefault）——
+  listEl.addEventListener('touchstart', e => onStart(e, true), { passive: true });
+  listEl.addEventListener('touchmove', onMove, { passive: false });
+  listEl.addEventListener('touchend', onEnd, { passive: true });
+  listEl.addEventListener('touchcancel', onEnd, { passive: true });
+
+  // —— 鼠标事件（桌面端）——
+  listEl.addEventListener('mousedown', e => onStart(e, false));
+  // mousemove/mouseup 绑到 document，避免拖出 list 范围后丢失事件
+  function docMouseMove(e) { if (dragEl && !isTouch) onMove(e); }
+  function docMouseUp(e) { if (dragEl && !isTouch) onEnd(e); }
+  document.addEventListener('mousemove', docMouseMove);
+  document.addEventListener('mouseup', docMouseUp);
 }
 
 function updateNeedsOrder() {
