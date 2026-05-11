@@ -2115,81 +2115,66 @@ const state = {
   emptyText: { id: 'em1', text: '还没有内容' }
 };
 
-// ============ 场景切换（v3.3：每一步切换都先把当前 active scene 向上折叠收起，再展示目标） ============
+// ============ 场景切换（v3.5.2：从 welcome 离开时播放折叠动画，其它步骤直接切换避免点击失效） ============
 function goScene(name) {
   const welcomeEl = document.getElementById('scene-welcome');
-  // 找到当前激活的 scene（如果有的话）
   const currentEl = document.querySelector('.scene.active');
   const targetEl = document.getElementById('scene-' + name);
   if (!targetEl) return;
-
-  // 同一个 scene，无操作
   if (currentEl === targetEl) return;
 
+  // 清理所有动画相关的残余 class 和 inline style（保险）
+  document.querySelectorAll('.scene').forEach(s => {
+    s.classList.remove('folding');
+    s.classList.remove('folding-end');
+    s.style.height = '';
+    s.style.padding = '';
+  });
   // 兜底：清掉 welcome 的 folded-done（如果是回 welcome）
   if (welcomeEl && name === 'welcome') {
     welcomeEl.classList.remove('folded-done');
-    welcomeEl.classList.remove('folding');
-    welcomeEl.classList.remove('folding-end');
-    welcomeEl.style.height = '';
-    welcomeEl.style.padding = '';
   }
 
-  // 没有当前 scene，或目标是 welcome（直接显示，无折叠）
-  if (!currentEl || name === 'welcome') {
-    document.querySelectorAll('.scene').forEach(s => {
-      s.classList.remove('active');
-      s.classList.remove('folding');
-      s.classList.remove('folding-end');
-      s.style.height = '';
-    });
+  // 只在"从 welcome 离开"时播折叠动画，其余切换直接显隐（防止动画期间 pointer-events/布局异常导致按钮点不动）
+  const isLeavingWelcome = currentEl && currentEl.id === 'scene-welcome' && name !== 'welcome';
+
+  if (isLeavingWelcome) {
+    // 先激活目标 scene
     targetEl.classList.add('active');
+    // 锁定 welcome 真实高度
+    const realH = welcomeEl.offsetHeight;
+    welcomeEl.style.height = realH + 'px';
+    welcomeEl.offsetHeight; // reflow
+    welcomeEl.classList.add('folding');
+    welcomeEl.classList.remove('active');
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        welcomeEl.classList.add('folding-end');
+      });
+    });
+    // 滚到顶
     window.scrollTo(0, 0);
     document.documentElement.scrollTop = 0;
     document.body.scrollTop = 0;
+    // 动画结束后彻底隐藏 welcome
+    setTimeout(() => {
+      welcomeEl.classList.remove('folding');
+      welcomeEl.classList.remove('folding-end');
+      welcomeEl.style.height = '';
+      welcomeEl.classList.add('folded-done');
+    }, 600);
     return;
   }
 
-  // === 折叠动画路径：current 向上压缩 → target 顶上 ===
-  // 1. 立即让 target 显示出来（fadeIn 动画会让它从下方淡入），垫在 current 下面
+  // 常规切换：移除所有 scene 的 active，激活 target
+  document.querySelectorAll('.scene').forEach(s => s.classList.remove('active'));
   targetEl.classList.add('active');
-
-  // 2. 锁定 current 当前真实高度作为 transition 起点
-  const realH = currentEl.offsetHeight;
-  currentEl.style.height = realH + 'px';
-  // 强制 reflow 让 height 生效
-  currentEl.offsetHeight; // eslint-disable-line no-unused-expressions
-
-  // 3. 加 .folding（建立 transition 和 overflow:hidden 等基础态）
-  currentEl.classList.add('folding');
-  currentEl.classList.remove('active'); // 移除 active 避免动画与 fadeIn 冲突
-
-  // 4. 下一帧加 .folding-end，触发 height→0、opacity→0、transform 上移的过渡
+  // 滚到顶
   requestAnimationFrame(() => {
-    requestAnimationFrame(() => {
-      currentEl.classList.add('folding-end');
-    });
-  });
-
-  // 5. 滚到顶部（current 还在收，但 sticky header 在顶部）
-  window.scrollTo(0, 0);
-  document.documentElement.scrollTop = 0;
-  document.body.scrollTop = 0;
-
-  // 6. 动画结束后清理：current 彻底隐藏
-  setTimeout(() => {
-    currentEl.classList.remove('folding');
-    currentEl.classList.remove('folding-end');
-    currentEl.style.height = '';
-    // 如果 current 是 welcome，给它加 folded-done 防止恢复原形
-    if (currentEl.id === 'scene-welcome') {
-      currentEl.classList.add('folded-done');
-    }
-    // 再次保险滚到顶
-    window.scrollTo({ top: 0, behavior: 'instant' in document.documentElement ? 'instant' : 'auto' });
+    window.scrollTo(0, 0);
     document.documentElement.scrollTop = 0;
     document.body.scrollTop = 0;
-  }, 600);
+  });
 }
 
 // ============ 即时Toast反馈 ============
@@ -4192,46 +4177,6 @@ window.addEventListener('DOMContentLoaded', () => {
   if (p && !p.abandoned) {
     console.log('检测到进行中的训练计划:', p.name);
   }
-
-  // v3.5.1 微信/iOS 兼容：给所有带 onclick 的交互元素绑 touchend 兜底触发 click。
-  // 原因：某些情况下 iOS WKWebView / 微信 X5 的 touchend→click 合成会失效（尤其在 scene 切换后的新 DOM）。
-  // 我们在 touchend 时若手指位移 <10px 就手动触发一次 click。click 事件在 iOS 上会被自动去重（不会双触发）。
-  let _tapStart = null;
-  document.addEventListener('touchstart', e => {
-    const t = e.target.closest('button, [onclick]');
-    if (!t) { _tapStart = null; return; }
-    // 如果 target 在 list 排序容器内，交给排序逻辑处理
-    if (t.closest('.needs-list, .painpoint-list')) { _tapStart = null; return; }
-    const p = e.touches[0];
-    _tapStart = { el: t, x: p.clientX, y: p.clientY, t: Date.now() };
-  }, { passive: true });
-  document.addEventListener('touchend', e => {
-    if (!_tapStart) return;
-    const { el, x, y, t } = _tapStart;
-    _tapStart = null;
-    const p = e.changedTouches[0];
-    if (!p) return;
-    const dx = p.clientX - x, dy = p.clientY - y;
-    const dt = Date.now() - t;
-    // 位移小、时间短 = 点击手势
-    if (Math.abs(dx) < 10 && Math.abs(dy) < 10 && dt < 500) {
-      // 原生 click 大多数情况会触发；我们在 50ms 内用 flag 防止重复
-      if (el._tapping) return;
-      el._tapping = true;
-      setTimeout(() => { el._tapping = false; }, 350);
-      // 如果 50ms 内原生 click 没来，手动触发
-      let fired = false;
-      const onClick = () => { fired = true; };
-      el.addEventListener('click', onClick, { once: true });
-      setTimeout(() => {
-        el.removeEventListener('click', onClick);
-        if (!fired && !el.disabled) {
-          // 手动触发 click
-          try { el.click(); } catch(err) { console.warn('manual click failed', err); }
-        }
-      }, 80);
-    }
-  }, { passive: true });
 });
 
 function restart() {
