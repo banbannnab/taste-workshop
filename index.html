@@ -1471,96 +1471,7 @@ button, [onclick] {
     </div>
 
     <div class="mvp-features" id="mvpFeatures">
-      <div class="feature-card" data-id="f1">
-        <span class="feat-state"></span>
-        <div class="feat-name">个人主页</div>
-        <div class="feat-desc">展示用户头像、昵称、简介、动态</div>
-        <div class="feat-buttons">
-          <button class="feat-btn keep-btn" onclick="setFeature('f1','kept')">保留</button>
-          <button class="feat-btn cut-btn" onclick="setFeature('f1','removed')">划掉</button>
-        </div>
-      </div>
-      <div class="feature-card" data-id="f2">
-        <span class="feat-state"></span>
-        <div class="feat-name">数据统计</div>
-        <div class="feat-desc">用图表展示用户的使用数据和趋势</div>
-        <div class="feat-buttons">
-          <button class="feat-btn keep-btn" onclick="setFeature('f2','kept')">保留</button>
-          <button class="feat-btn cut-btn" onclick="setFeature('f2','removed')">划掉</button>
-        </div>
-      </div>
-      <div class="feature-card" data-id="f3">
-        <span class="feat-state"></span>
-        <div class="feat-name">社交动态</div>
-        <div class="feat-desc">朋友圈式的内容分享和互动</div>
-        <div class="feat-buttons">
-          <button class="feat-btn keep-btn" onclick="setFeature('f3','kept')">保留</button>
-          <button class="feat-btn cut-btn" onclick="setFeature('f3','removed')">划掉</button>
-        </div>
-      </div>
-      <div class="feature-card" data-id="f4">
-        <span class="feat-state"></span>
-        <div class="feat-name">内容推荐</div>
-        <div class="feat-desc">基于算法的个性化内容推荐</div>
-        <div class="feat-buttons">
-          <button class="feat-btn keep-btn" onclick="setFeature('f4','kept')">保留</button>
-          <button class="feat-btn cut-btn" onclick="setFeature('f4','removed')">划掉</button>
-        </div>
-      </div>
-      <div class="feature-card" data-id="f5">
-        <span class="feat-state"></span>
-        <div class="feat-name">课程/任务系统</div>
-        <div class="feat-desc">系统化的学习路径或任务清单</div>
-        <div class="feat-buttons">
-          <button class="feat-btn keep-btn" onclick="setFeature('f5','kept')">保留</button>
-          <button class="feat-btn cut-btn" onclick="setFeature('f5','removed')">划掉</button>
-        </div>
-      </div>
-      <div class="feature-card" data-id="f6">
-        <span class="feat-state"></span>
-        <div class="feat-name">排行榜</div>
-        <div class="feat-desc">用户间的竞争和荣誉感激励</div>
-        <div class="feat-buttons">
-          <button class="feat-btn keep-btn" onclick="setFeature('f6','kept')">保留</button>
-          <button class="feat-btn cut-btn" onclick="setFeature('f6','removed')">划掉</button>
-        </div>
-      </div>
-      <div class="feature-card" data-id="f7">
-        <span class="feat-state"></span>
-        <div class="feat-name">收藏夹</div>
-        <div class="feat-desc">让用户保存喜欢的内容方便回看</div>
-        <div class="feat-buttons">
-          <button class="feat-btn keep-btn" onclick="setFeature('f7','kept')">保留</button>
-          <button class="feat-btn cut-btn" onclick="setFeature('f7','removed')">划掉</button>
-        </div>
-      </div>
-      <div class="feature-card" data-id="f8">
-        <span class="feat-state"></span>
-        <div class="feat-name">通知系统</div>
-        <div class="feat-desc">提醒用户重要事件和更新</div>
-        <div class="feat-buttons">
-          <button class="feat-btn keep-btn" onclick="setFeature('f8','kept')">保留</button>
-          <button class="feat-btn cut-btn" onclick="setFeature('f8','removed')">划掉</button>
-        </div>
-      </div>
-      <div class="feature-card" data-id="f9">
-        <span class="feat-state"></span>
-        <div class="feat-name">搜索</div>
-        <div class="feat-desc">让用户主动找到想要的内容</div>
-        <div class="feat-buttons">
-          <button class="feat-btn keep-btn" onclick="setFeature('f9','kept')">保留</button>
-          <button class="feat-btn cut-btn" onclick="setFeature('f9','removed')">划掉</button>
-        </div>
-      </div>
-      <div class="feature-card" data-id="f10">
-        <span class="feat-state"></span>
-        <div class="feat-name">评论互动</div>
-        <div class="feat-desc">用户之间的留言、点赞、回复</div>
-        <div class="feat-buttons">
-          <button class="feat-btn keep-btn" onclick="setFeature('f10','kept')">保留</button>
-          <button class="feat-btn cut-btn" onclick="setFeature('f10','removed')">划掉</button>
-        </div>
-      </div>
+      <!-- v3.7：根据 state.direction 动态渲染功能卡片 -->
     </div>
 
     <div class="mvp-help">
@@ -2228,6 +2139,8 @@ function pickDirection(el, id) {
   };
   showTaste(tasteMap[id]);
   checkDirectionDone();
+  // v3.7 一致性检验
+  setTimeout(() => checkConsistency('direction'), 50);
 }
 
 // v3.1：服务对象选择 + 需求洞察排序
@@ -2321,6 +2234,8 @@ function pickUser(el, userId) {
 
   showTaste(`${data.intro}\n现在为TA真正的核心需求排序。`);
   checkDirectionDone();
+  // v3.7 一致性检验
+  setTimeout(() => checkConsistency('user'), 50);
 }
 
 function bindNeedsDrag() {
@@ -2529,13 +2444,142 @@ enableTouchSort(painpointList, '.painpoint-item', () => {
     p5: '把「社交」放第一：你的产品Taste是「关系驱动」。'
   };
   showTaste(map[top]);
+  // v3.7 一致性检验
+  setTimeout(() => checkConsistency('painpoints'), 50);
 });
 
 // ============ 第四幕：搭MVP（三态可切换：未决定 / 保留 / 划掉） ============
-const featureNames = {
-  f1:'个人主页', f2:'数据统计', f3:'社交动态', f4:'内容推荐', f5:'课程/任务系统',
-  f6:'排行榜', f7:'收藏夹', f8:'通知系统', f9:'搜索', f10:'评论互动'
+// ============ 第四幕：搭MVP（v3.7：按方向动态渲染功能池） ============
+
+// v3.7 功能池：4 个方向 × 各 10 个功能
+const FEATURE_POOL = {
+  tool: [
+    { id:'t1', name:'任务清单',     desc:'核心待办：勾选打钩，干净直接' },
+    { id:'t2', name:'计时器/番茄钟', desc:'专注时段计时，结束提醒' },
+    { id:'t3', name:'数据统计',     desc:'累计完成数、连续打卡天数' },
+    { id:'t4', name:'模板库',       desc:'预设常用任务模板，一键应用' },
+    { id:'t5', name:'提醒推送',     desc:'定时/地点提醒，让事情自己浮起来' },
+    { id:'t6', name:'历史记录',     desc:'完成事件回看与回顾' },
+    { id:'t7', name:'多端同步',     desc:'云同步，手机电脑数据一致' },
+    { id:'t8', name:'快捷指令',     desc:'iOS Shortcut/Widget 接入' },
+    { id:'t9', name:'标签分类',     desc:'给任务打标签便于检索' },
+    { id:'t10',name:'离线可用',     desc:'无网络时也可正常使用' }
+  ],
+  content: [
+    { id:'c1', name:'信息流',       desc:'个性化推荐内容流' },
+    { id:'c2', name:'收藏夹',       desc:'收藏喜欢的内容并分类' },
+    { id:'c3', name:'评论互动',     desc:'用户评论、点赞、转发' },
+    { id:'c4', name:'关注作者',     desc:'订阅创作者的更新' },
+    { id:'c5', name:'主题专栏',     desc:'按话题/兴趣聚合的专栏' },
+    { id:'c6', name:'搜索',         desc:'关键词、标签、作者多维搜索' },
+    { id:'c7', name:'离线下载',     desc:'下载内容离线阅读' },
+    { id:'c8', name:'沉浸阅读',     desc:'全屏无干扰阅读模式' },
+    { id:'c9', name:'内容订阅',     desc:'RSS / Newsletter 订阅' },
+    { id:'c10',name:'阅读进度',     desc:'自动记忆上次阅读位置' }
+  ],
+  social: [
+    { id:'s1', name:'个人主页',     desc:'展示个人信息和动态' },
+    { id:'s2', name:'动态广场',     desc:'朋友/全平台动态流' },
+    { id:'s3', name:'私信聊天',     desc:'一对一文字/图片沟通' },
+    { id:'s4', name:'群组讨论',     desc:'多人小组聊天' },
+    { id:'s5', name:'关系链',       desc:'关注、粉丝、好友体系' },
+    { id:'s6', name:'同城/附近',    desc:'基于位置的社交发现' },
+    { id:'s7', name:'兴趣匹配',     desc:'按标签匹配相似用户' },
+    { id:'s8', name:'实时状态',     desc:'在线状态、最后活跃' },
+    { id:'s9', name:'表情/贴纸',    desc:'个性化表达工具' },
+    { id:'s10',name:'语音房间',     desc:'多人实时语音/视频房' }
+  ],
+  business: [
+    { id:'b1', name:'商品列表',     desc:'浏览商品/服务清单' },
+    { id:'b2', name:'商品详情',     desc:'介绍、图片、参数、SKU' },
+    { id:'b3', name:'购物车',       desc:'暂存待购商品' },
+    { id:'b4', name:'下单付款',     desc:'支付流程、订单生成' },
+    { id:'b5', name:'订单管理',     desc:'历史订单、状态追踪' },
+    { id:'b6', name:'优惠券/折扣',  desc:'营销活动、券包' },
+    { id:'b7', name:'用户评价',     desc:'商品评价与晒图' },
+    { id:'b8', name:'客服在线',     desc:'即时咨询客服' },
+    { id:'b9', name:'物流追踪',     desc:'包裹状态实时更新' },
+    { id:'b10',name:'会员/积分',    desc:'VIP 体系、积分商城' }
+  ]
 };
+
+// v3.7：动态计算 featureNames（旧代码用 featureNames[id] 取名，需保持兼容）
+let featureNames = {};
+(function rebuildFeatureNames(){
+  Object.values(FEATURE_POOL).forEach(arr => arr.forEach(f => { featureNames[f.id] = f.name; }));
+})();
+
+// v3.7 渲染当前方向的 MVP 功能池
+function renderMvpFeatures() {
+  const dir = state.direction || 'tool';
+  const list = FEATURE_POOL[dir] || FEATURE_POOL.tool;
+  const wrap = document.getElementById('mvpFeatures');
+  if (!wrap) return;
+  // 清空 state.features（每次进 MVP 重置选择）
+  state.features = { kept: [], cut: [] };
+  wrap.innerHTML = list.map(f => `
+    <div class="feature-card" data-id="${f.id}">
+      <span class="feat-state"></span>
+      <div class="feat-name">${f.name}</div>
+      <div class="feat-desc">${f.desc}</div>
+      <div class="feat-buttons">
+        <button class="feat-btn keep-btn" data-action="setFeature('${f.id}','kept')">保留</button>
+        <button class="feat-btn cut-btn" data-action="setFeature('${f.id}','removed')">划掉</button>
+      </div>
+    </div>
+  `).join('');
+  // 绑定 click + touchend（沿用 v3.6 的兼容方案）
+  wrap.querySelectorAll('button[data-action]').forEach(btn => {
+    const code = btn.getAttribute('data-action');
+    btn.addEventListener('click', function(){
+      try { (new Function(code)).call(btn); } catch(e) { console.error('feat btn err:', e); }
+    });
+    let tStart = null;
+    btn.addEventListener('touchstart', e => {
+      const t = e.touches && e.touches[0];
+      if (t) tStart = { x:t.clientX, y:t.clientY, time:Date.now() };
+    }, { passive:true });
+    btn.addEventListener('touchend', e => {
+      if (!tStart) return;
+      const t = e.changedTouches && e.changedTouches[0];
+      tStart = null;
+      if (!t) return;
+      if (btn._recentlyFired) return;
+      btn._recentlyFired = true;
+      setTimeout(()=>{ btn._recentlyFired=false; }, 400);
+      // click 事件大概率会触发，仅作兜底
+    }, { passive:true });
+  });
+  refreshMvpStats();
+}
+
+// v3.7 一致性检验：根据 state 综合判断是否给提示
+function checkConsistency(reason) {
+  if (!state.direction) return;
+  let warn = null;
+  // 规则 1: tool 方向 + 痛点首位是动力
+  if (reason === 'painpoints' && state.direction === 'tool' && state.painpoints && state.painpoints[0] === 'p2') {
+    warn = '⚠️ 工具型产品先解决「做不到」，再解决「想做」——把"动力"放第一容易让产品做成情感型。你确定吗？';
+  }
+  // 规则 2: social 方向但 MVP 没保留任何 s* 功能
+  else if (reason === 'features' && state.direction === 'social' && state.features.kept.length >= 1
+    && !state.features.kept.some(id => id.startsWith('s'))) {
+    warn = '⚠️ 你定位是社交型产品，但 MVP 里没保留任何社交功能——这会让产品看起来"名不副实"。';
+  }
+  // 规则 3: L4 银发用户 + 风格密度=紧凑
+  else if (reason === 'density' && state.user === 'L4' && state.density && state.density.value === 'dense') {
+    warn = '⚠️ 银发用户的眼睛对宽松密度更友好——紧凑布局会让他们觉得"挤"。';
+  }
+  // 规则 4: 通勤场景 + MVP 留 4+ 个功能
+  else if (reason === 'features' && state.scenario === 'commute' && state.features.kept.length >= 4) {
+    warn = '⚠️ 通勤场景"单手三秒钟"，留这么多功能用得过来吗？真的全是核心吗？';
+  }
+  // 规则 5: tool 方向 + L1 大学生（用户群通常更"玩"，需要克制工具的严肃感）
+  else if (reason === 'user' && state.direction === 'tool' && state.user === 'L1') {
+    warn = '👀 大学生喜欢"好玩"多过"高效"——纯工具型产品对他们容易显得说教。可能要在风格上松一些。';
+  }
+  if (warn) showTaste(warn);
+}
 
 // 同一张卡再次点击同状态 = 取消该状态（回到"未决定"）
 function setFeature(id, targetState) {
@@ -2581,6 +2625,8 @@ function setFeature(id, targetState) {
   }
 
   refreshMvpStats();
+  // v3.7 一致性检验
+  setTimeout(() => checkConsistency('features'), 50);
 }
 
 function refreshMvpStats() {
@@ -2980,8 +3026,171 @@ function initStyleScene() {
   if (!state.notify) state.notify = { id: 'ntf1', value: 'quiet' };
   if (!state.biz) state.biz = { id: 'biz1', value: 'hidden' };
   if (!state.emptyText) state.emptyText = { id: 'em1', text: '还没有内容' };
+  // v3.7：按 direction 重渲染主色 + 欢迎语 + Slogan + 空状态文案
+  renderStyleByDirection();
   bindBrandInput();
   refreshRealisticPhone();
+}
+
+// v3.7：根据 state.direction 重新渲染风格环节的 4 个核心维度（主色/欢迎语/Slogan/空状态）
+const STYLE_PRESETS = {
+  tool: {
+    colors: [
+      { id:'c1', bg:'linear-gradient(135deg,#1a1a1a,#444)',     name:'极简黑白' },
+      { id:'c5', bg:'linear-gradient(135deg,#07c160,#06ad56)',  name:'柔和绿' },
+      { id:'c4', bg:'linear-gradient(135deg,#0f172a,#1e3a8a)',  name:'深蓝白' },
+      { id:'c3', bg:'linear-gradient(135deg,#fbbf24,#f87171)',  name:'暖橙提示' }
+    ],
+    welcomes: [
+      { id:'cp1', text:'开始记录吧' },
+      { id:'cp2', text:'今天又是高效的一天' },
+      { id:'cp3', text:'登录到账户' },
+      { id:'cp4', text:'准备好了吗' }
+    ],
+    slogans: [
+      { id:'sl1', text:'时间的盟友' },
+      { id:'sl2', text:'让事情发生' },
+      { id:'sl3', text:'从这里开始' },
+      { id:'sl4', text:'(无 Slogan)' }
+    ],
+    empties: [
+      { id:'em1', text:'还没有任务，添加一个开始' },
+      { id:'em2', text:'空空如也' },
+      { id:'em3', text:'此处尚未有数据' },
+      { id:'em4', text:'当前列表为空' }
+    ]
+  },
+  content: {
+    colors: [
+      { id:'c1', bg:'linear-gradient(135deg,#1a1a1a,#444)',     name:'深空黑' },
+      { id:'c6', bg:'linear-gradient(135deg,#fde68a,#fef3c7)',  name:'阅读纸黄' },
+      { id:'c3', bg:'linear-gradient(135deg,#fbbf24,#f87171)',  name:'品牌暖红' },
+      { id:'c2', bg:'linear-gradient(135deg,#667eea,#764ba2)',  name:'文艺紫' }
+    ],
+    welcomes: [
+      { id:'cp1', text:'读点不一样的' },
+      { id:'cp2', text:'今天的内容已为你准备好' },
+      { id:'cp3', text:'登录到账户' },
+      { id:'cp4', text:'慢一点，看看' }
+    ],
+    slogans: [
+      { id:'sl1', text:'值得花时间的内容' },
+      { id:'sl2', text:'看见更大的世界' },
+      { id:'sl3', text:'好内容会自己说话' },
+      { id:'sl4', text:'(无 Slogan)' }
+    ],
+    empties: [
+      { id:'em1', text:'还没有内容，关注一些作者吧' },
+      { id:'em2', text:'空空如也' },
+      { id:'em3', text:'暂无推荐，请稍后再来' },
+      { id:'em4', text:'当前列表为空' }
+    ]
+  },
+  social: {
+    colors: [
+      { id:'c2', bg:'linear-gradient(135deg,#667eea,#764ba2)',  name:'活力青' },
+      { id:'c3', bg:'linear-gradient(135deg,#fbbf24,#f87171)',  name:'暖橘粉' },
+      { id:'c5', bg:'linear-gradient(135deg,#07c160,#06ad56)',  name:'清新绿' },
+      { id:'c1', bg:'linear-gradient(135deg,#1a1a1a,#444)',     name:'克制黑' }
+    ],
+    welcomes: [
+      { id:'cp1', text:'最近怎么样' },
+      { id:'cp2', text:'朋友们都在等你' },
+      { id:'cp3', text:'登录到账户' },
+      { id:'cp4', text:'来看看新鲜事' }
+    ],
+    slogans: [
+      { id:'sl1', text:'和你的朋友们' },
+      { id:'sl2', text:'在这里被看见' },
+      { id:'sl3', text:'每一个故事都值得被听到' },
+      { id:'sl4', text:'(无 Slogan)' }
+    ],
+    empties: [
+      { id:'em1', text:'还没有动态，发一条吧' },
+      { id:'em2', text:'空空如也' },
+      { id:'em3', text:'好友太少了，去添加几个吧' },
+      { id:'em4', text:'当前列表为空' }
+    ]
+  },
+  business: {
+    colors: [
+      { id:'c4', bg:'linear-gradient(135deg,#0f172a,#1e3a8a)',  name:'信任蓝' },
+      { id:'c3', bg:'linear-gradient(135deg,#fbbf24,#f87171)',  name:'电商红' },
+      { id:'c6', bg:'linear-gradient(135deg,#fde68a,#fef3c7)',  name:'奢华金' },
+      { id:'c1', bg:'linear-gradient(135deg,#1a1a1a,#444)',     name:'克制黑' }
+    ],
+    welcomes: [
+      { id:'cp1', text:'欢迎光临' },
+      { id:'cp2', text:'今日推荐已为您准备' },
+      { id:'cp3', text:'登录到账户' },
+      { id:'cp4', text:'您好' }
+    ],
+    slogans: [
+      { id:'sl1', text:'值得拥有' },
+      { id:'sl2', text:'品质生活' },
+      { id:'sl3', text:'为你严选' },
+      { id:'sl4', text:'(无 Slogan)' }
+    ],
+    empties: [
+      { id:'em1', text:'购物车是空的，去逛逛' },
+      { id:'em2', text:'空空如也' },
+      { id:'em3', text:'暂无商品，请稍后再来' },
+      { id:'em4', text:'当前列表为空' }
+    ]
+  }
+};
+
+function renderStyleByDirection() {
+  const dir = state.direction || 'tool';
+  const preset = STYLE_PRESETS[dir] || STYLE_PRESETS.tool;
+  // 主色
+  const colorBox = document.getElementById('colorOptions');
+  if (colorBox) {
+    colorBox.innerHTML = preset.colors.map((c, i) => `
+      <div class="color-option${i===0?' selected':''}" data-id="${c.id}" data-bg="${c.bg}" data-name="${c.name}">
+        <div class="color-preview" style="background:${c.bg};"></div>
+        <div class="color-name">${c.name}</div>
+      </div>
+    `).join('');
+    colorBox.querySelectorAll('.color-option').forEach(el => {
+      el.addEventListener('click', () => pickColor(el));
+    });
+    // 默认选中第一个
+    state.color = { id: preset.colors[0].id, bg: preset.colors[0].bg, name: preset.colors[0].name };
+  }
+  // 欢迎语
+  const welcomeBox = document.getElementById('copyOptions');
+  if (welcomeBox) {
+    welcomeBox.innerHTML = preset.welcomes.map((w, i) => `
+      <div class="copy-option${i===0?' selected':''}" data-id="${w.id}" data-text="${w.text}">"${w.text}"</div>
+    `).join('');
+    welcomeBox.querySelectorAll('.copy-option').forEach(el => {
+      el.addEventListener('click', () => pickCopy(el));
+    });
+    state.copy = { id: preset.welcomes[0].id, text: preset.welcomes[0].text };
+  }
+  // Slogan
+  const sloganBox = document.getElementById('sloganOptions');
+  if (sloganBox) {
+    sloganBox.innerHTML = preset.slogans.map((s, i) => `
+      <div class="copy-option${i===0?' selected':''}" data-id="${s.id}" data-text="${s.text}">"${s.text}"</div>
+    `).join('');
+    sloganBox.querySelectorAll('.copy-option').forEach(el => {
+      el.addEventListener('click', () => pickSlogan(el));
+    });
+    state.slogan = { id: preset.slogans[0].id, text: preset.slogans[0].text };
+  }
+  // 空状态
+  const emptyBox = document.getElementById('emptyOptions');
+  if (emptyBox) {
+    emptyBox.innerHTML = preset.empties.map((e, i) => `
+      <div class="copy-option${i===0?' selected':''}" data-id="${e.id}" data-text="${e.text}">"${e.text}"</div>
+    `).join('');
+    emptyBox.querySelectorAll('.copy-option').forEach(el => {
+      el.addEventListener('click', () => pickEmpty(el));
+    });
+    state.emptyText = { id: preset.empties[0].id, text: preset.empties[0].text };
+  }
 }
 
 // 实时把保留的3个功能渲染到预览（v3.2：调用新的写实手机渲染）
@@ -4192,13 +4401,14 @@ function loadPlan() {
   catch(e) { return null; }
 }
 
-// 包装原 goScene，切到 planSetup/checkIn 时做初始化
+// 包装原 goScene，切到 planSetup/checkIn/style/mvp 时做初始化
 const _origGoScene = window.goScene;
 window.goScene = function(name) {
   _origGoScene(name);
   if (name === 'planSetup') initPlanSetup();
   if (name === 'checkIn') initCheckIn();
   if (name === 'style') initStyleScene();
+  if (name === 'mvp') renderMvpFeatures(); // v3.7 进入 MVP 时按 direction 渲染功能池
 };
 
 window.addEventListener('DOMContentLoaded', () => {
